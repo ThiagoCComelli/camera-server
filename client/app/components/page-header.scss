@@ -1,0 +1,27 @@
+.page-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+
+  &-title {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.6px;
+  }
+
+  &-section {
+    font-weight: 400;
+    color: #6b7280;
+  }
+}
+
+.camera-id {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 400;
+  color: #6b7280;
+}

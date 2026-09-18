@@ -1,0 +1,33 @@
+.layout {
+  height: 100vh;
+  height: 100dvh;
+  padding: 32px 40px;
+  overflow: hidden;
+
+  @media (max-width: 800px) {
+    height: auto;
+    min-height: 100dvh;
+    padding: 16px;
+    overflow: visible;
+  }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #d1d5db;
+
+      &.live {
+        background: #ef4444;
+      }
+    }
+  }
+}
