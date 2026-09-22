@@ -1,6 +1,4 @@
 import subprocess
-import threading
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -8,9 +6,9 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 VIDEO_SUFFIXES = {".mp4"}
+THUMBNAIL_SUFFIXES = {".jpg"}
 DAY_FORMAT = "%d-%m-%Y"
 FILE_FORMAT = "%d-%m-%Y_%H-%M-%S"
-PROBE_JOBS = 4
 
 
 def _parse_utc(name, fmt):
@@ -20,12 +18,12 @@ def _parse_utc(name, fmt):
         return None
 
 
-def _mtime_utc(path):
-    return datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
-
-
 def _is_video(path):
     return path.suffix.lower() in VIDEO_SUFFIXES and path.is_file()
+
+
+def _is_thumbnail(path):
+    return path.suffix.lower() in THUMBNAIL_SUFFIXES and path.is_file()
 
 
 def probe_duration(path):
@@ -50,12 +48,35 @@ def probe_duration(path):
         return None
 
 
+def generate_thumbnail(path):
+    thumbnail = path.with_suffix(".jpg")
+    try:
+        result = subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-loglevel",
+                "error",
+                "-ss",
+                "00:00:01",
+                "-i",
+                str(path),
+                "-frames:v",
+                "1",
+                str(thumbnail),
+            ],
+            capture_output=True,
+            timeout=10,
+        )
+        return thumbnail if result.returncode == 0 and thumbnail.is_file() else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
 class Library:
-    def __init__(self, root):
+    def __init__(self, root, conn):
         self.root = Path(root).resolve()
-        self._lock = threading.Lock()
-        self._durations = {}
-        self._probes = ThreadPoolExecutor(PROBE_JOBS)
+        self.conn = conn
 
     def resolve(self, relative):
         path = (self.root / relative).resolve()
@@ -72,44 +93,11 @@ class Library:
         return "" if path == self.root else path.relative_to(self.root).as_posix()
 
     def list(self, relative):
-        folder = self.resolve(relative)
-        if not folder.is_dir():
-            raise HTTPException(400, "not a folder")
-
-        dirs, files = [], []
-        for child in folder.iterdir():
-            if child.name.startswith("."):
-                continue
-            if child.is_dir():
-                dirs.append(child)
-            elif _is_video(child):
-                files.append(child)
-
-        started = {f: _parse_utc(f.stem, FILE_FORMAT) or _mtime_utc(f) for f in files}
-        dirs.sort(
-            key=lambda d: _parse_utc(d.name, DAY_FORMAT) or _mtime_utc(d), reverse=True
-        )
-        files.sort(key=started.get, reverse=True)
-        durations = self._probes.map(self._duration, files)
-
-        return [
-            {
-                "name": d.name,
-                "path": self.relative(d),
-                "type": "dir",
-                "count": sum(1 for c in d.iterdir() if _is_video(c)),
-            }
-            for d in dirs
-        ] + [
-            {
-                "name": f.name,
-                "path": self.relative(f),
-                "type": "file",
-                "startedAt": started[f].isoformat(),
-                "duration": duration,
-            }
-            for f, duration in zip(files, durations)
-        ]
+        if relative == "":
+            return self._list_days()
+        if _parse_utc(relative, DAY_FORMAT) is None:
+            raise HTTPException(404)
+        return self._list_videos(relative)
 
     def video(self, relative):
         path = self.resolve(relative)
@@ -117,21 +105,44 @@ class Library:
             raise HTTPException(404)
         return path
 
-    def _duration(self, path):
-        try:
-            stat = path.stat()
-        except OSError:
-            return None
-        key = (str(path), stat.st_mtime_ns, stat.st_size)
-        with self._lock:
-            if key in self._durations:
-                return self._durations[key]
-        # seconds = probe_duration(path)
-        seconds = 1
-        if seconds is not None:
-            with self._lock:
-                self._durations[key] = seconds
-        return seconds
+    def thumbnail(self, relative):
+        path = self.resolve(relative)
+        if not _is_thumbnail(path):
+            raise HTTPException(404)
+        return path
+
+    def _list_days(self):
+        rows = self.conn.execute(
+            "SELECT date, COUNT(*) FROM videos GROUP BY date"
+        ).fetchall()
+        days = [(day, count) for day, count in rows if _parse_utc(day, DAY_FORMAT)]
+        days.sort(key=lambda row: _parse_utc(row[0], DAY_FORMAT), reverse=True)
+        return [
+            {"name": day, "path": day, "type": "dir", "count": count}
+            for day, count in days
+        ]
+
+    def _list_videos(self, day):
+        rows = self.conn.execute(
+            "SELECT name, path, duration, thumbnail FROM videos WHERE date = ?",
+            (day,),
+        ).fetchall()
+        fallback = datetime.min.replace(tzinfo=timezone.utc)
+        videos = [
+            {
+                "name": name,
+                "path": path,
+                "type": "file",
+                "startedAt": (
+                    _parse_utc(Path(name).stem, FILE_FORMAT) or fallback
+                ).isoformat(),
+                "duration": duration,
+                "thumbnail": thumbnail,
+            }
+            for name, path, duration, thumbnail in rows
+        ]
+        videos.sort(key=lambda v: v["startedAt"], reverse=True)
+        return videos
 
 
 def create_router(library):
@@ -144,5 +155,9 @@ def create_router(library):
     @router.get("/media/{path:path}")
     def media(path: str):
         return FileResponse(library.video(path), media_type="video/mp4")
+
+    @router.get("/thumbnail/{path:path}")
+    def thumbnail(path: str):
+        return FileResponse(library.thumbnail(path), media_type="image/jpeg")
 
     return router

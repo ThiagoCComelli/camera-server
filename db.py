@@ -9,9 +9,19 @@ CREATE TABLE IF NOT EXISTS events (
     end        REAL NOT NULL,
     duration   REAL NOT NULL,
     confidence REAL NOT NULL,
-    x INTEGER, y INTEGER, w INTEGER, h INTEGER 
+    x INTEGER, y INTEGER, w INTEGER, h INTEGER
 );
 CREATE INDEX IF NOT EXISTS events_start ON events (start);
+
+CREATE TABLE IF NOT EXISTS videos (
+    id        INTEGER PRIMARY KEY,
+    name      TEXT NOT NULL,
+    path      TEXT NOT NULL UNIQUE,
+    date      TEXT NOT NULL,
+    duration  REAL,
+    thumbnail TEXT
+);
+CREATE INDEX IF NOT EXISTS videos_date ON videos (date);
 """
 
 
@@ -40,6 +50,37 @@ def events_sink(conn):
                 y,
                 w,
                 h,
+            ),
+        )
+        conn.commit()
+
+    return sink
+
+
+def videos_remove_sink(conn):
+    def sink(paths):
+        conn.executemany(
+            "DELETE FROM videos WHERE path = ?",
+            [(str(path),) for path in paths],
+        )
+        conn.commit()
+
+    return sink
+
+
+def videos_sink(conn):
+    def sink(video):
+        conn.execute(
+            "INSERT INTO videos (name, path, date, duration, thumbnail)"
+            " VALUES (?, ?, ?, ?, ?)"
+            " ON CONFLICT(path) DO UPDATE SET"
+            " duration = excluded.duration, thumbnail = excluded.thumbnail",
+            (
+                video["name"],
+                video["path"],
+                video["date"],
+                video.get("duration"),
+                video.get("thumbnail"),
             ),
         )
         conn.commit()

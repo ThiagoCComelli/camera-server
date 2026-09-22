@@ -5,6 +5,9 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+import db
+from files import generate_thumbnail, probe_duration
+
 
 class H264Writer:
     def __init__(self, path, width, height, fps):
@@ -49,15 +52,27 @@ class H264Writer:
 
 
 class ChunkedRecorder:
-    def __init__(self, output_dir, width, height, fps, chunk_minutes=5, min_free_gb=5):
+    def __init__(
+        self,
+        output_dir,
+        width,
+        height,
+        fps,
+        conn,
+        chunk_minutes=5,
+        min_free_gb=5,
+    ):
         self.output_dir = Path(output_dir)
         self.width = width
         self.height = height
         self.fps = fps
         self.chunk_seconds = chunk_minutes * 60
         self.min_free_gb = min_free_gb
+        self._save_video = db.videos_sink(conn)
+        self._remove_videos = db.videos_remove_sink(conn)
         self._writer = None
         self._chunk_id = None
+        self._path = None
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def write(self, frame):
@@ -66,21 +81,23 @@ class ChunkedRecorder:
             self.close()
             if self._free_gb() < self.min_free_gb:
                 self._erase_oldest_day()
-            self._writer = self._create_writer()
+            self._writer, self._path = self._create_writer()
             self._chunk_id = chunk_id
         self._writer.write(frame)
 
     def close(self):
         if self._writer is not None:
-            writer, self._writer = self._writer, None
+            writer, path = self._writer, self._path
+            self._writer = self._path = None
             writer.release()
+            self._on_video_saved(path)
 
     def _create_writer(self):
         now = datetime.now(tz=ZoneInfo("UTC"))
         day_dir = self.output_dir / now.strftime("%d-%m-%Y")
         day_dir.mkdir(parents=True, exist_ok=True)
         path = day_dir / f"{now.strftime('%d-%m-%Y')}_{now.strftime('%H-%M-%S')}.mp4"
-        return H264Writer(path, self.width, self.height, self.fps)
+        return H264Writer(path, self.width, self.height, self.fps), path
 
     def _free_gb(self):
         stats = os.statvfs(self.output_dir)
@@ -93,6 +110,33 @@ class ChunkedRecorder:
         )
         if not days:
             return
-        for file in days[0].iterdir():
+        removed = list(days[0].iterdir())
+        for file in removed:
             file.unlink()
         days[0].rmdir()
+        self._on_videos_removed(removed)
+
+    def _on_video_saved(self, path):
+        try:
+            thumbnail = generate_thumbnail(path)
+            self._save_video(
+                {
+                    "name": path.name,
+                    "path": str(path.relative_to(self.output_dir)),
+                    "date": path.parent.name,
+                    "duration": probe_duration(path),
+                    "thumbnail": str(thumbnail.relative_to(self.output_dir))
+                    if thumbnail
+                    else None,
+                }
+            )
+        except Exception as exc:
+            print(f"Saving video record failed: {exc}")
+
+    def _on_videos_removed(self, paths):
+        try:
+            self._remove_videos(
+                [str(path.relative_to(self.output_dir)) for path in paths]
+            )
+        except Exception as exc:
+            print(f"Removing video records failed: {exc}")

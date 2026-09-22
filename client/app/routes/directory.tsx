@@ -8,6 +8,7 @@ import {
   formatDate,
   formatDuration,
   mediaUrl,
+  thumbnailUrl,
   useListing,
   type Entry,
 } from "../recordings";
@@ -45,10 +46,14 @@ function FileCard({ entry }: { entry: Extract<Entry, { type: "file" }> }) {
       className="card"
     >
       <div className="card-thumb video">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M10 8l6 4-6 4z" />
-        </svg>
+        {entry.thumbnail ? (
+          <img src={thumbnailUrl(entry.thumbnail)} alt="" loading="lazy" />
+        ) : (
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M10 8l6 4-6 4z" />
+          </svg>
+        )}
       </div>
       <div className="card-details">
         <div className="card-title">Record</div>

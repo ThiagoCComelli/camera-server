@@ -8,6 +8,7 @@ export type Entry =
       path: string;
       startedAt: string;
       duration: number | null;
+      thumbnail: string | null;
     };
 
 const encodePath = (path: string) =>
@@ -17,6 +18,9 @@ export const folderUrl = (path: string) =>
   path ? `/directory/${encodePath(path)}` : "/directory";
 
 export const mediaUrl = (path: string) => `/api/media/${encodePath(path)}`;
+
+export const thumbnailUrl = (path: string) =>
+  `/api/thumbnail/${encodePath(path)}`;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 

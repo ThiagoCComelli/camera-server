@@ -12,7 +12,7 @@ from live import LatestFrame
 from recorder import ChunkedRecorder
 from server import create_app
 
-CHUNK_MINUTES = 5
+CHUNK_MINUTES = 1
 MIN_FREE_GB = 5
 LIVE_HOST = "0.0.0.0"
 LIVE_PORT = 8000
@@ -90,6 +90,7 @@ def main():
         capture.width,
         capture.height,
         args.output_fps,
+        conn,
         CHUNK_MINUTES,
         MIN_FREE_GB,
     )
@@ -107,7 +108,7 @@ def main():
 
     server = Server(
         uvicorn.Config(
-            create_app(latest, Library(output_dir), lifespan, web_dir),
+            create_app(latest, Library(output_dir, conn), lifespan, web_dir),
             host=LIVE_HOST,
             port=LIVE_PORT,
             timeout_graceful_shutdown=2,
