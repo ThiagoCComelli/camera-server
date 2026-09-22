@@ -126,7 +126,8 @@ class Library:
         with self._lock:
             if key in self._durations:
                 return self._durations[key]
-        seconds = probe_duration(path)
+        # seconds = probe_duration(path)
+        seconds = 1
         if seconds is not None:
             with self._lock:
                 self._durations[key] = seconds
