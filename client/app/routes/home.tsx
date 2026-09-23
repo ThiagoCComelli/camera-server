@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import type { Route } from "./+types/home";
 
+import { apiUrl, isRemote } from "../api";
 import { Page } from "../components/page";
 import { useMjpeg, type FeedStatus } from "../mjpeg";
 
@@ -121,12 +122,22 @@ function Sidebar() {
           </small>
         </h2>
       </div>
+      {isRemote() && (
+        <div className="panel" style={{ marginTop: "auto" }}>
+          <h2 className="panel-title">
+            Settings
+            <small>
+              <Link to="/settings">Open settings →</Link>
+            </small>
+          </h2>
+        </div>
+      )}
     </aside>
   );
 }
 
 export default function Home() {
-  const { src, status } = useMjpeg("/live");
+  const { src, status } = useMjpeg(apiUrl("/live"));
 
   return (
     <Page actions={<LiveStatus status={status} />}>

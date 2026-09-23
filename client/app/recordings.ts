@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { apiUrl } from "./api";
+
 export type Entry =
   | { type: "dir"; name: string; path: string; count: number }
   | {
@@ -17,10 +19,11 @@ const encodePath = (path: string) =>
 export const folderUrl = (path: string) =>
   path ? `/directory/${encodePath(path)}` : "/directory";
 
-export const mediaUrl = (path: string) => `/api/media/${encodePath(path)}`;
+export const mediaUrl = (path: string) =>
+  apiUrl(`/api/media/${encodePath(path)}`);
 
 export const thumbnailUrl = (path: string) =>
-  `/api/thumbnail/${encodePath(path)}`;
+  apiUrl(`/api/thumbnail/${encodePath(path)}`);
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -50,7 +53,7 @@ export function useListing(path: string) {
     setEntries(null);
     setError(null);
 
-    fetch(`/api/files?path=${encodeURIComponent(path)}`, {
+    fetch(apiUrl(`/api/files?path=${encodeURIComponent(path)}`), {
       signal: controller.signal,
     })
       .then((res) => {

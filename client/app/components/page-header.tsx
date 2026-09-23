@@ -15,7 +15,6 @@ export function PageHeader({
     <header className="page-header">
       <h1 className="page-header-title">
         {CAMERA.name}
-        <span className="camera-id">{CAMERA.id}</span>
         {section && <span className="page-header-section">/ {section}</span>}
       </h1>
       {actions && <div className="page-header-actions">{actions}</div>}

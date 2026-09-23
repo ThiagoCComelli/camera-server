@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -45,6 +46,13 @@ def parse_args():
         help="built React app to serve at / (default: client/build/client next to main.py)",
         default=Path(__file__).parent / "client" / "build" / "client",
         type=Path,
+    )
+    parser.add_argument(
+        "--access-token",
+        action="store",
+        help="key required for requests from outside the local network "
+        "(default: $CAMERA_ACCESS_TOKEN; unset means remote access is refused)",
+        default=os.environ.get("CAMERA_ACCESS_TOKEN"),
     )
     return parser.parse_args()
 
@@ -108,7 +116,13 @@ def main():
 
     server = Server(
         uvicorn.Config(
-            create_app(latest, Library(output_dir, conn), lifespan, web_dir),
+            create_app(
+                latest,
+                Library(output_dir, conn),
+                lifespan,
+                web_dir,
+                args.access_token,
+            ),
             host=LIVE_HOST,
             port=LIVE_PORT,
             timeout_graceful_shutdown=2,
