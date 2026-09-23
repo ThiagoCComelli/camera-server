@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import type { Route } from "./+types/settings";
 
+import { isApp } from "../api";
 import { Page } from "../components/page";
 
 import "./settings.scss";
@@ -34,8 +35,8 @@ export default function SettingsPage() {
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    localStorage.setItem("serverAddress", settings.serverAddress);
-    localStorage.setItem("token", settings.token);
+    localStorage.setItem("serverAddress", settings.serverAddress.trim());
+    localStorage.setItem("token", settings.token.trim());
 
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -55,29 +56,30 @@ export default function SettingsPage() {
       }
     >
       <form className="settings" onSubmit={onSubmit}>
-        <label className="field">
-          <span className="field-label">Server address</span>
-          <input
-            data-field="serverAddress"
-            type="text"
-            placeholder="189.73.174.41:8000"
-            defaultValue={settings.serverAddress}
-            onChange={handleChange}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <span className="field-hint">
-            IP address the client sends its requests to. Only necessary when the
-            user is outside the local network.
-          </span>
-        </label>
-
+        {isApp() && (
+          <label className="field">
+            <span className="field-label">Server address</span>
+            <input
+              data-field="serverAddress"
+              type="text"
+              placeholder="189.73.174.41:8000"
+              value={settings.serverAddress}
+              onChange={handleChange}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <span className="field-hint">
+              Where the app sends its requests: the server's local IP at home,
+              or its public IP to reach it from outside.
+            </span>
+          </label>
+        )}
         <label className="field">
           <span className="field-label">Access key</span>
           <input
             data-field="token"
             type="text"
-            defaultValue={settings.token}
+            value={settings.token}
             onChange={handleChange}
             autoComplete="off"
           />
@@ -86,7 +88,6 @@ export default function SettingsPage() {
             is outside the local network.
           </span>
         </label>
-
         <div className="settings-actions">
           {saved && <span className="settings-saved">Saved</span>}
           <button type="submit">Save</button>

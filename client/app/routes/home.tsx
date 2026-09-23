@@ -3,7 +3,7 @@ import { Link } from "react-router";
 
 import type { Route } from "./+types/home";
 
-import { apiUrl, isRemote } from "../api";
+import { apiUrl, isApp } from "../api";
 import { Page } from "../components/page";
 import { useMjpeg, type FeedStatus } from "../mjpeg";
 
@@ -122,7 +122,7 @@ function Sidebar() {
           </small>
         </h2>
       </div>
-      {isRemote() && (
+      {isApp() && (
         <div className="panel" style={{ marginTop: "auto" }}>
           <h2 className="panel-title">
             Settings

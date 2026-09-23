@@ -1,29 +1,22 @@
 import { Capacitor } from "@capacitor/core";
 
-const isLocalHostname = (hostname: string) =>
-  /^(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3})$/.test(hostname);
-
-export function isRemote() {
-  return (
-    Capacitor.isNativePlatform() || !isLocalHostname(window.location.hostname)
-  );
-}
+export const isApp = () => Capacitor.isNativePlatform();
 
 export const getServerAddress = () =>
   localStorage.getItem("serverAddress") ?? "";
 export const getToken = () => localStorage.getItem("token") ?? "";
 
-function serverOrigin() {
-  const address = getServerAddress().trim().replace(/\/+$/, "");
-  if (!address) return "";
-  return /^https?:\/\//.test(address) ? address : `http://${address}`;
-}
-
 export function apiUrl(path: string) {
-  if (!isRemote()) return path;
-
-  const url = new URL(path, serverOrigin() || window.location.origin);
+  const address = isApp() ? getServerAddress().trim().replace(/\/+$/, "") : "";
   const token = getToken();
+  if (!address && !token) return path;
+
+  const origin = !address
+    ? window.location.origin
+    : /^https?:\/\//.test(address)
+      ? address
+      : `http://${address}`;
+  const url = new URL(path, origin);
   if (token) url.searchParams.set("token", token);
   return url.toString();
 }

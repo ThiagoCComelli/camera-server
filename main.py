@@ -16,7 +16,6 @@ from server import create_app
 CHUNK_MINUTES = 5
 MIN_FREE_GB = 5
 LIVE_HOST = "0.0.0.0"
-LIVE_PORT = 8000
 
 
 def parse_args():
@@ -53,6 +52,13 @@ def parse_args():
         help="key required for requests from outside the local network "
         "(default: $CAMERA_ACCESS_TOKEN; unset means remote access is refused)",
         default=os.environ.get("CAMERA_ACCESS_TOKEN"),
+    )
+    parser.add_argument(
+        "--port",
+        action="store",
+        type=int,
+        help="port to listen on (default: 49152)",
+        default=49152,
     )
     return parser.parse_args()
 
@@ -124,7 +130,7 @@ def main():
                 args.access_token,
             ),
             host=LIVE_HOST,
-            port=LIVE_PORT,
+            port=args.port,
             timeout_graceful_shutdown=2,
         ),
         on_shutdown=latest.close,

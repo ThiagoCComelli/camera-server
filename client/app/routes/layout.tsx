@@ -2,28 +2,26 @@ import { Outlet, redirect } from "react-router";
 
 import type { Route } from "./+types/layout";
 
-import { Capacitor } from "@capacitor/core";
-
-import { getServerAddress, getToken, isRemote } from "../api";
+import { getServerAddress, getToken, isApp } from "../api";
 
 import "./layout.scss";
 
 export async function clientLoader({ request }: Route.ClientLoaderArgs) {
   const { pathname } = new URL(request.url);
-  const remote = isRemote();
 
-  if (!remote && pathname === "/settings") {
+  if (!isApp() && pathname === "/settings") {
     throw redirect("/");
   }
 
-  const configured = Capacitor.isNativePlatform()
-    ? !!getServerAddress()
-    : !!getToken();
-  if (remote && !configured && pathname !== "/settings") {
+  if (
+    isApp() &&
+    (!getServerAddress() || !getToken()) &&
+    pathname !== "/settings"
+  ) {
     throw redirect("/settings");
   }
 
-  return { isRemote: remote };
+  return null;
 }
 
 export function shouldRevalidate() {
