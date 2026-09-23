@@ -12,7 +12,7 @@ from live import LatestFrame
 from recorder import ChunkedRecorder
 from server import create_app
 
-CHUNK_MINUTES = 1
+CHUNK_MINUTES = 5
 MIN_FREE_GB = 5
 LIVE_HOST = "0.0.0.0"
 LIVE_PORT = 8000
