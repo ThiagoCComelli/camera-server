@@ -19,7 +19,7 @@ LOCAL_NETWORKS = [
 ]
 
 
-def _is_local(host):
+def is_local(host):
     try:
         ip = ipaddress.ip_address(host)
     except (TypeError, ValueError):
@@ -46,7 +46,7 @@ class TokenAuthMiddleware:
         if (
             scope["type"] != "http"
             or not scope["path"].startswith(PROTECTED_PREFIXES)
-            or _is_local((scope.get("client") or (None,))[0])
+            or is_local((scope.get("client") or (None,))[0])
         ):
             return await self.app(scope, receive, send)
 
