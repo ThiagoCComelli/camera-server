@@ -82,6 +82,7 @@ class H264Writer:
                 # fragmented MP4: written as it goes, so closing it needs no
                 # rewrite of the whole file, and a crash leaves it playable
                 "-movflags",
+                "+faststart",
                 "+frag_keyframe+empty_moov+delay_moov+default_base_moof",
                 str(path),
             ],
@@ -114,20 +115,17 @@ class ChunkedRecorder:
     def __init__(
         self,
         output_dir,
-        width,
-        height,
         fps,
         conn,
         chunk_minutes=5,
         min_free_gb=5,
     ):
         self.output_dir = Path(output_dir)
-        self.width = width
-        self.height = height
         self.fps = fps
         self.chunk_seconds = chunk_minutes * 60
         self.min_free_gb = min_free_gb
-        self.encoder = pick_encoder(width, height, fps)
+        self._size = None  # (width, height) of the current chunk, from its frames
+        self._encoders = {}  # encoder that works for each frame size
         self._save_video = db.videos_sink(conn)
         self._remove_videos = db.videos_remove_sink(conn)
         self._writer = None
@@ -138,7 +136,6 @@ class ChunkedRecorder:
         self._closed = False
         self._queue = queue.Queue(maxsize=self.QUEUE_FRAMES)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        print(f"Recording with {self.encoder}")
         self._thread = threading.Thread(target=self._run, name="recorder")
         self._thread.start()
 
@@ -158,7 +155,12 @@ class ChunkedRecorder:
     def _run(self):
         while (frame := self._queue.get()) is not None:
             chunk_id = int(time.time() // self.chunk_seconds)
-            if self._writer is None or chunk_id != self._chunk_id:
+            height, width = frame.shape[:2]
+            if (
+                self._writer is None
+                or chunk_id != self._chunk_id
+                or (width, height) != self._size  # camera reopened at another size
+            ):
                 self._finish_chunk()
                 if self._free_gb() < self.min_free_gb:
                     self._erase_oldest_day()
@@ -176,9 +178,16 @@ class ChunkedRecorder:
         now = datetime.now()  # local time, so names match the day the viewer lives in
         day_dir = self.output_dir / now.strftime("%d-%m-%Y")
         day_dir.mkdir(parents=True, exist_ok=True)
-        self._path = day_dir / f"{now.strftime('%d-%m-%Y')}_{now.strftime('%H-%M-%S')}.mp4"
+        self._path = (
+            day_dir / f"{now.strftime('%d-%m-%Y')}_{now.strftime('%H-%M-%S')}.mp4"
+        )
+        height, width = frame.shape[:2]
+        self._size = (width, height)
+        if self._size not in self._encoders:
+            self._encoders[self._size] = pick_encoder(width, height, self.fps)
+            print(f"Recording {width}x{height} with {self._encoders[self._size]}")
         self._writer = H264Writer(
-            self._path, self.width, self.height, self.fps, self.encoder
+            self._path, width, height, self.fps, self._encoders[self._size]
         )
         self._thumbnail = self._write_thumbnail(frame, self._path.with_suffix(".jpg"))
         self._started = self._last_frame = time.monotonic()

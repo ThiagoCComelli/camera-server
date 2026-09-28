@@ -22,15 +22,16 @@ class RateLimiter:
 
 
 class Capture:
-    """Reads the camera on a thread and hands every frame to the registered sinks."""
+    """Reads the camera on a thread and hands every frame to the registered sinks.
 
-    def __init__(self, source, on_exit=None):
-        self._cap = cv2.VideoCapture(source)
-        if not self._cap.isOpened():
-            raise RuntimeError(f"could not open video input {source!r}")
-        self.width = int(self._cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.height = int(self._cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        self._on_exit = on_exit
+    If the camera can't be opened, or stops delivering frames (unplugged, driver
+    hiccup), it is retried every RETRY_SECONDS instead of stopping the server.
+    """
+
+    RETRY_SECONDS = 5
+
+    def __init__(self, source):
+        self._source = source
         self._sinks = []
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._run, name="capture")
@@ -54,14 +55,35 @@ class Capture:
         self._thread.join()
 
     def _run(self):
-        try:
-            while not self._stop.is_set():
-                ret, frame = self._cap.read()
-                if not ret:
-                    break
-                for sink in self._sinks:
-                    sink(frame)
-        finally:
-            self._cap.release()
-            if self._on_exit is not None:
-                self._on_exit()
+        failing = False
+        while not self._stop.is_set():
+            cap = cv2.VideoCapture(self._source)
+            try:
+                if not cap.isOpened():
+                    if not failing:
+                        print(
+                            f"Could not open video input {self._source!r}, "
+                            f"retrying every {self.RETRY_SECONDS} s"
+                        )
+                    failing = True
+                else:
+                    failing = False
+                    if self._read(cap):
+                        print(
+                            f"Video input {self._source!r} stopped sending frames, "
+                            f"retrying every {self.RETRY_SECONDS} s"
+                        )
+            finally:
+                cap.release()
+            self._stop.wait(self.RETRY_SECONDS)
+
+    def _read(self, cap):
+        """Feeds frames to the sinks until stopped (False) or the input fails (True)."""
+        print(f"Video input {self._source!r} opened")
+        while not self._stop.is_set():
+            ret, frame = cap.read()
+            if not ret:
+                return True
+            for sink in self._sinks:
+                sink(frame)
+        return False

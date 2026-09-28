@@ -97,15 +97,9 @@ def main():
     if web_dir is None:
         print(f"No React build at {args.web_dir}, serving /live only")
 
-    def request_shutdown():
-        latest.close()
-        server.should_exit = True
-
-    capture = Capture(args.input, on_exit=request_shutdown)
+    capture = Capture(args.input)
     recorder = ChunkedRecorder(
         output_dir,
-        capture.width,
-        capture.height,
         args.output_fps,
         conn,
         CHUNK_MINUTES,
