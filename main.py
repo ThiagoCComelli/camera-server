@@ -18,6 +18,7 @@ MIN_FREE_GB = 5
 LIVE_HOST = "0.0.0.0"
 LIVE_FPS = 15
 LIVE_JPEG_QUALITY = 70
+LIVE_MAX_WIDTH = 1280  # preview only; recordings keep the camera resolution
 
 
 def parse_args():
@@ -110,7 +111,7 @@ def main():
         CHUNK_MINUTES,
         MIN_FREE_GB,
     )
-    latest = LatestFrame(quality=LIVE_JPEG_QUALITY)
+    latest = LatestFrame(quality=LIVE_JPEG_QUALITY, max_width=LIVE_MAX_WIDTH)
     capture.add_sink(recorder.write, fps=args.output_fps)
     capture.add_sink(latest.publish, fps=LIVE_FPS)
 

@@ -5,7 +5,7 @@ import type { Route } from "./+types/home";
 
 import { apiUrl, isApp } from "../api";
 import { Page } from "../components/page";
-import { useMjpeg, type FeedStatus } from "../mjpeg";
+import { useLiveFeed, type FeedStatus } from "../live-feed";
 
 import "./home.scss";
 
@@ -137,7 +137,7 @@ function Sidebar() {
 }
 
 export default function Home() {
-  const { src, status } = useMjpeg(apiUrl("/live"));
+  const { src, status } = useLiveFeed(apiUrl("/live/frame"));
 
   return (
     <Page actions={<LiveStatus status={status} />}>
