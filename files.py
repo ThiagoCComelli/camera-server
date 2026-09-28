@@ -1,4 +1,3 @@
-import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -24,53 +23,6 @@ def _is_video(path):
 
 def _is_thumbnail(path):
     return path.suffix.lower() in THUMBNAIL_SUFFIXES and path.is_file()
-
-
-def probe_duration(path):
-    try:
-        result = subprocess.run(
-            [
-                "ffprobe",
-                "-v",
-                "error",
-                "-show_entries",
-                "format=duration",
-                "-of",
-                "csv=p=0",
-                str(path),
-            ],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        return float(result.stdout.strip()) if result.returncode == 0 else None
-    except (OSError, subprocess.SubprocessError, ValueError):
-        return None
-
-
-def generate_thumbnail(path):
-    thumbnail = path.with_suffix(".jpg")
-    try:
-        result = subprocess.run(
-            [
-                "ffmpeg",
-                "-y",
-                "-loglevel",
-                "error",
-                "-ss",
-                "00:00:01",
-                "-i",
-                str(path),
-                "-frames:v",
-                "1",
-                str(thumbnail),
-            ],
-            capture_output=True,
-            timeout=10,
-        )
-        return thumbnail if result.returncode == 0 and thumbnail.is_file() else None
-    except (OSError, subprocess.SubprocessError):
-        return None
 
 
 class Library:
