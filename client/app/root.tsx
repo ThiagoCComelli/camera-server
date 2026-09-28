@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { App as CapacitorApp } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 import {
   isRouteErrorResponse,
   Links,
@@ -43,6 +46,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const listener = CapacitorApp.addListener("backButton", ({ canGoBack }) => {
+      if (canGoBack) window.history.back();
+      else CapacitorApp.exitApp();
+    });
+
+    return () => {
+      listener.then((l) => l.remove());
+    };
+  }, []);
+
   return <Outlet />;
 }
 

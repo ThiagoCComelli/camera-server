@@ -8,8 +8,8 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/live": "http://localhost:8000",
-      "/api": "http://localhost:8000",
+      "/live": "http://localhost:49152",
+      "/api": "http://localhost:49152",
     },
   },
 });
