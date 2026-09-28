@@ -3,7 +3,6 @@ import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import db
 from files import generate_thumbnail, probe_duration
@@ -93,7 +92,7 @@ class ChunkedRecorder:
             self._on_video_saved(path)
 
     def _create_writer(self):
-        now = datetime.now(tz=ZoneInfo("UTC"))
+        now = datetime.now()  # local time, so names match the day the viewer lives in
         day_dir = self.output_dir / now.strftime("%d-%m-%Y")
         day_dir.mkdir(parents=True, exist_ok=True)
         path = day_dir / f"{now.strftime('%d-%m-%Y')}_{now.strftime('%H-%M-%S')}.mp4"

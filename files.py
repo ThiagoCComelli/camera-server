@@ -11,9 +11,9 @@ DAY_FORMAT = "%d-%m-%Y"
 FILE_FORMAT = "%d-%m-%Y_%H-%M-%S"
 
 
-def _parse_utc(name, fmt):
+def _parse_local(name, fmt):
     try:
-        return datetime.strptime(name, fmt).replace(tzinfo=timezone.utc)
+        return datetime.strptime(name, fmt).astimezone()
     except ValueError:
         return None
 
@@ -95,7 +95,7 @@ class Library:
     def list(self, relative):
         if relative == "":
             return self._list_days()
-        if _parse_utc(relative, DAY_FORMAT) is None:
+        if _parse_local(relative, DAY_FORMAT) is None:
             raise HTTPException(404)
         return self._list_videos(relative)
 
@@ -115,8 +115,8 @@ class Library:
         rows = self.conn.execute(
             "SELECT date, COUNT(*) FROM videos GROUP BY date"
         ).fetchall()
-        days = [(day, count) for day, count in rows if _parse_utc(day, DAY_FORMAT)]
-        days.sort(key=lambda row: _parse_utc(row[0], DAY_FORMAT), reverse=True)
+        days = [(day, count) for day, count in rows if _parse_local(day, DAY_FORMAT)]
+        days.sort(key=lambda row: _parse_local(row[0], DAY_FORMAT), reverse=True)
         return [
             {"name": day, "path": day, "type": "dir", "count": count}
             for day, count in days
@@ -134,7 +134,7 @@ class Library:
                 "path": path,
                 "type": "file",
                 "startedAt": (
-                    _parse_utc(Path(name).stem, FILE_FORMAT) or fallback
+                    _parse_local(Path(name).stem, FILE_FORMAT) or fallback
                 ).isoformat(),
                 "duration": duration,
                 "thumbnail": thumbnail,

@@ -16,6 +16,8 @@ from server import create_app
 CHUNK_MINUTES = 5
 MIN_FREE_GB = 5
 LIVE_HOST = "0.0.0.0"
+LIVE_FPS = 15
+LIVE_JPEG_QUALITY = 70
 
 
 def parse_args():
@@ -108,9 +110,9 @@ def main():
         CHUNK_MINUTES,
         MIN_FREE_GB,
     )
-    latest = LatestFrame()
+    latest = LatestFrame(quality=LIVE_JPEG_QUALITY)
     capture.add_sink(recorder.write, fps=args.output_fps)
-    capture.add_sink(latest.publish)
+    capture.add_sink(latest.publish, fps=LIVE_FPS)
 
     @asynccontextmanager
     async def lifespan(_app):
