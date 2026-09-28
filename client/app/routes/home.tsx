@@ -137,7 +137,7 @@ function Sidebar() {
 }
 
 export default function Home() {
-  const { src, status } = useLiveFeed(apiUrl("/live/frame"));
+  const { src, status } = useLiveFeed(apiUrl("/live/ws"));
 
   return (
     <Page actions={<LiveStatus status={status} />}>

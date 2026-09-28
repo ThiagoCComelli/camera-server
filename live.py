@@ -2,8 +2,8 @@ import asyncio
 import threading
 
 import cv2
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import Response, StreamingResponse
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 
 FRAME_WAIT_SECONDS = 5
 
@@ -72,7 +72,7 @@ def create_router(latest):
     @router.get("/live")
     async def live():
         """Continuous MJPEG, for direct LAN viewers (VLC, a bare <img>). Behind a
-        proxy it queues frames and lags; the app polls /live/frame instead."""
+        proxy it queues frames and lags; the app uses /live/ws instead."""
 
         async def stream():
             seq = 0
@@ -93,21 +93,26 @@ def create_router(latest):
             stream(), media_type="multipart/x-mixed-replace; boundary=frame"
         )
 
-    @router.get("/live/frame")
-    async def frame(after: int = 0):
-        """The newest frame, waiting for one newer than `after` if needed.
+    @router.websocket("/live/ws")
+    async def live_ws(websocket: WebSocket):
+        """Sends the newest frame, then waits for the client to confirm it was
+        shown before sending the next one.
 
-        The client asks for the next frame only after the previous one arrived, so
-        at most one frame is ever in flight: a slow link lowers the frame rate
-        instead of building up delay in proxy buffers.
+        With at most one frame in flight nothing queues up in proxy buffers: a
+        slow link lowers the frame rate instead of adding delay, and it all runs
+        over a single connection rather than a request per frame.
         """
-        seq, jpeg = await asyncio.to_thread(latest.wait_next, after)
-        if jpeg is None or latest.closed:
-            raise HTTPException(503, "No camera frame available")
-        return Response(
-            jpeg,
-            media_type="image/jpeg",
-            headers={"Cache-Control": "no-store", "X-Frame-Seq": str(seq)},
-        )
+        await websocket.accept()
+        seq = 0
+        try:
+            while not latest.closed:
+                seq, jpeg = await asyncio.to_thread(latest.wait_next, seq)
+                if jpeg is None or latest.closed:
+                    continue
+                await websocket.send_bytes(jpeg)
+                await websocket.receive_text()
+            await websocket.close()
+        except WebSocketDisconnect:
+            pass
 
     return router

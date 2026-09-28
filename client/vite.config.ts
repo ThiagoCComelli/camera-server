@@ -8,7 +8,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/live": "http://localhost:49152",
+      "/live": { target: "http://localhost:49152", ws: true },
       "/api": "http://localhost:49152",
     },
   },

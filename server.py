@@ -17,7 +17,6 @@ def create_app(latest, library, lifespan=None, web_dir=None, access_token=None):
         allow_origins=APP_ORIGINS,
         allow_methods=["GET"],
         allow_headers=["Authorization"],
-        expose_headers=["X-Frame-Seq"],
     )
 
     app.include_router(live.create_router(latest))

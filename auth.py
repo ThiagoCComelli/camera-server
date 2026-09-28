@@ -3,6 +3,7 @@ import secrets
 from urllib.parse import parse_qs
 
 from starlette.responses import JSONResponse
+from starlette.websockets import WebSocketClose
 
 PROTECTED_PREFIXES = ("/api/", "/live")
 LOCAL_NETWORKS = [
@@ -44,7 +45,7 @@ class TokenAuthMiddleware:
 
     async def __call__(self, scope, receive, send):
         if (
-            scope["type"] != "http"
+            scope["type"] not in ("http", "websocket")
             or not scope["path"].startswith(PROTECTED_PREFIXES)
             or is_local((scope.get("client") or (None,))[0])
         ):
@@ -54,5 +55,8 @@ class TokenAuthMiddleware:
         if self.token and given and secrets.compare_digest(given, self.token):
             return await self.app(scope, receive, send)
 
-        response = JSONResponse({"detail": "Invalid or missing access token"}, 401)
+        if scope["type"] == "websocket":
+            response = WebSocketClose(code=1008)  # policy violation; seen as 403
+        else:
+            response = JSONResponse({"detail": "Invalid or missing access token"}, 401)
         await response(scope, receive, send)
